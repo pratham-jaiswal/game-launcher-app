@@ -1,5 +1,5 @@
 # Game Launcher
-Welcome to the Game Launcher app! It allows you to add, remove, and launch games with ease. The application is designed to simplify the process of accessing your games directly from one place. It is converted into a [standalone executable file](https://.com/pratham-jaiswal/game-launcher-app/releases/tag/Latest) for ease of use and distribution.
+Welcome to the Game Launcher app! It allows you to add, remove, and launch games with ease. The application is designed to simplify the process of accessing your games directly from one place. It is converted into a standalone executable file for ease of use and distribution.
 
 ## Use Case
 - Lets users organize and manage their collection of PC games.
@@ -21,7 +21,7 @@ Welcome to the Game Launcher app! It allows you to add, remove, and launch games
 
 ## Installing and Using the App
 > ***Note: This is a windows only application***
-- Download the *Game Launcher V1 - Setup.exe* from [here](https://github.com/pratham-jaiswal/game-launcher-app/releases/tag/Latest).
+- Download the latest setup from [here](https://github.com/pratham-jaiswal/game-launcher-app/releases/tag/Latest).
 - Double click on it to install *Game Launcher*.
 - Run the *Game Launcher* app.
 - Click the *Add Game* button to select and add your game's .exe file to the launcher. Make sure it's a correct **executable** file.
@@ -36,7 +36,7 @@ Welcome to the Game Launcher app! It allows you to add, remove, and launch games
     ```
 - Install the dependencies
     ```sh
-    pip install tkinter ttkthemes pickle
+    pip install -r requirements.txt
     ```
 - Run the *main.py*
     ```sh
