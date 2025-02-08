@@ -20,6 +20,15 @@ import os
 load_dotenv()
 
 def get_file_description(file_path):
+    """
+    Gets the description of a given .exe file.
+
+    Args:
+        file_path (str): The path to the .exe file.
+
+    Returns:
+        str: The description of the given .exe file, or "No description available" if not found.
+    """
     try:
         info = win32api.GetFileVersionInfo(file_path, "\\StringFileInfo\\040904b0\\FileDescription")
         return info if info else "No description available"
@@ -27,6 +36,15 @@ def get_file_description(file_path):
         return "No description available"
 
 def getStandalone(root_path):
+    """
+    Scans the given root directory and its subdirectories for .exe files and extracts descriptions.
+
+    Args:
+        root_path (str): The path to the root directory to scan.
+
+    Returns:
+        dict: A dictionary where the keys are the paths of the directories containing .exe files and the values are dictionaries mapping the .exe names to their descriptions.
+    """
     exe_map = {}
 
     for dirpath, _, filenames in os.walk(root_path):
@@ -38,6 +56,36 @@ def getStandalone(root_path):
     return exe_map
 
 def getGameStandalonesFromLLM(exe_data):
+    """
+    Extracts game standalones from the given data using the specified LLM.
+
+    The LLM is given a JSON string of the following format:
+    {
+        "path1": {
+            "exe1": "exe1 description",
+            "exe2": "exe2 description",
+            ...
+        },
+        "path2": {
+            ...
+        },
+        ...
+    }
+
+    The LLM should return a JSON string of the following format:
+    [
+        {"name": "Game1 Name", "path": "Game1 Standalone Path"},
+        {"name": "Game2 Name", "path": "Game2 Standalone Path"}
+    ]
+
+    If a game has a launcher then only add the launcher.
+
+    Args:
+        exe_data (dict): The data to extract game standalones from.
+
+    Returns:
+        list: A list of extracted game standalones, or an empty list if an error occurred.
+    """
     llm_choice = os.getenv("LLM_CHOICE", "Cohere")
     api_key = os.getenv("COHERE_API_KEY") if llm_choice == "Cohere" else os.getenv("OPENAI_API_KEY")
 
@@ -72,11 +120,35 @@ def getGameStandalonesFromLLM(exe_data):
         return []
 
 def log_error(error_message):
+    """Append an error message to a log file.
+    
+    The log file is in the same directory as the script and is named "error-logs.txt". Each entry is
+    timestamped and includes the error message. The purpose of this function is to log errors that
+    occur when the script is run, so that they can be reported to the developer.
+    
+    Parameters
+    ----------
+    error_message : str
+        The error message to be logged.
+    """
     with open("error-logs.txt", "a") as log_file:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_file.write(f"[{timestamp}] - Error: {error_message}\n")
 
 def log_launch_error(game, error_message):
+    """Append an error message to a log file for a specific game.
+    
+    The log file is in the same directory as the script and is named "error-logs.txt". Each entry is
+    timestamped and includes the game name and error message. The purpose of this function is to log
+    errors that occur when a game is being processed, so that they can be reported to the developer.
+    
+    Parameters
+    ----------
+    game : str
+        The name of the game that caused the error.
+    error_message : str
+        The error message to be logged.
+    """
     with open("error-logs.txt", "a") as log_file:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_file.write(f"[{timestamp}] - Error processing {game}: {error_message}\n")
@@ -84,6 +156,37 @@ def log_launch_error(game, error_message):
 
 class GameLauncher:
     def __init__(self, root):
+        """
+        Initialize the Game Launcher object.
+
+        Parameters
+        ----------
+        root : tkinter.Tk
+            The root window of the application.
+
+        Attributes
+        ----------
+        root : tkinter.Tk
+            The root window of the application.
+        games : set
+            Set of game paths.
+        llm_choice : str
+            The preferred language model to use.
+        menubar : tkinter.Menu
+            The menu bar of the application.
+        scrollbar : ttk.Scrollbar
+            The scrollbar of the game treeview.
+        game_treeview : ttk.Treeview
+            The treeview of games.
+        add_button : ttk.Button
+            The button to add a game.
+        detect_button : ttk.Button
+            The button to detect games using AI.
+        remove_button : ttk.Button
+            The button to remove a game.
+        launch_button : ttk.Button
+            The button to launch a game.
+        """
         self.root = root
         self.root.title("Game Launcher")
         self.root.geometry("500x400")
@@ -126,6 +229,20 @@ class GameLauncher:
         self.load_games()
 
     def open_settings(self):
+        """
+        Opens the settings window for the user to configure their API keys and preferred LLM.
+
+        The settings window is a separate window that allows the user to input their API keys and select which LLM to use.
+        The window is displayed whenever the user clicks the "Settings" button in the menu bar.
+
+        The window contains the following fields:
+        - Cohere API Key: A text field where the user can enter their Cohere API key.
+        - OpenAI API Key: A text field where the user can enter their OpenAI API key.
+        - Select LLM: A dropdown menu where the user can select which LLM to use (Cohere or OpenAI).
+
+        Once the user has filled in the fields, they can click the "Save" button to save their settings and close the window.
+        If the user clicks the "Cancel" button, the window will close without saving any changes.
+        """
         load_dotenv(override=True)
         
         settings_window = tk.Toplevel(self.root)
@@ -158,6 +275,15 @@ class GameLauncher:
         llm_choice.pack()
 
         def save_settings():            
+            """
+            Saves the settings to the .env file and updates the LLM choice for the Game Launcher.
+
+            Notes
+            -----
+            This function is called when the user clicks the "Save" button in the settings window.
+            It saves the user's input (API keys and LLM choice) to the .env file and updates the LLM choice for the Game Launcher.
+            After saving the settings, it closes the settings window.
+            """
             set_key(".env", "COHERE_API_KEY", cohere_key.get())
             set_key(".env", "OPENAI_API_KEY", openai_key.get())
             set_key(".env", "LLM_CHOICE", llm_choice.get())
@@ -172,6 +298,15 @@ class GameLauncher:
         self.check_api_key()
 
     def open_help(self):
+        """
+        Opens a help window containing a guide on how to use the Game Launcher and some troubleshooting tips.
+
+        Notes
+        -----
+        This function is called when the user clicks the "Help" button in the menu.
+        It creates a new window with a text box containing the help guide and a close button.
+        The close button closes the help window.
+        """
         help_window = tk.Toplevel(self.root)
         icon_image = tk.PhotoImage(file="icon.png")
         help_window.iconphoto(False, icon_image)
@@ -215,9 +350,22 @@ class GameLauncher:
         close_button = ttk.Button(help_window, text="Close", command=help_window.destroy)
         close_button.pack(pady=10)
 
-
-
     def check_api_key(self):
+        """
+        Checks the availability of the API key based on the selected LLM and updates the state of the detect button.
+
+        This function loads the environment variables and verifies if an API key (Cohere or OpenAI) is set
+        according to the user's selected LLM. If no API key is found, the detect button is disabled and a tooltip
+        is added to inform the user. If an API key is available, the detect button is enabled.
+
+        Attributes
+        ----------
+        detect_button : ttk.Button
+            The button for detecting games, which is enabled or disabled based on API key availability.
+        detect_button_tip : Hovertip, optional
+            A tooltip that displays a message when the detect button is disabled due to missing API key.
+        """
+
         load_dotenv(override=True)
         api_key = os.getenv("COHERE_API_KEY") if self.llm_choice == "Cohere" else os.getenv("OPENAI_API_KEY")
 
@@ -230,6 +378,24 @@ class GameLauncher:
                 self.detect_button_tip.hidetip()
 
     def show_loading_popup(self):
+        """
+        Displays a loading popup window to indicate that game detection is in progress.
+
+        This function creates a modal popup window with a "Detecting Games" message. 
+        It disables interaction with certain buttons in the main application window 
+        to prevent user actions during the game detection process.
+
+        Attributes
+        ----------
+        loading_popup : tk.Toplevel
+            A top-level window that displays the loading message.
+
+        Notes
+        -----
+        The popup is non-resizable and transient, ensuring focus remains on the popup 
+        until it is closed.
+        """
+
         self.loading_popup = tk.Toplevel(self.root)
         self.loading_popup.title("Detecting Games")
         self.loading_popup.geometry("250x100")
@@ -248,6 +414,19 @@ class GameLauncher:
         self.root.update_idletasks()
 
     def hide_loading_popup(self):
+        """
+        Hides the loading popup window and re-enables all buttons.
+
+        Attributes
+        ----------
+        loading_popup : tk.Toplevel
+            A top-level window that displays the loading message.
+
+        Notes
+        -----
+        This function is called when the loading popup needs to be closed.
+        It destroys the popup window and re-enables interaction with the buttons.
+        """
         if hasattr(self, 'loading_popup') and self.loading_popup:
             self.loading_popup.destroy()
 
@@ -258,6 +437,22 @@ class GameLauncher:
         self.support_button.config(state="normal")
 
     def add_game(self):
+        """
+        Prompts the user to select a game executable file and adds it to the game list if not already added.
+
+        This function opens a file dialog for the user to select a `.exe` file. It normalizes the
+        selected file path and checks if it is already in the game list. If not, it adds the path,
+        updates the game treeview, and saves the game list. If the game is already added, it shows
+        an informational message to the user. Handles exceptions by displaying an error message
+        and logging the error.
+
+        Exceptions
+        ----------
+        Exception
+            If an error occurs during file selection or processing, an error message is displayed
+            and the error is logged.
+        """
+
         try:
             game_path = filedialog.askopenfilename(title="Select a game .exe file", filetypes=[("Executable files", "*.exe")])
             normalized_path = os.path.normpath(game_path)
@@ -272,7 +467,22 @@ class GameLauncher:
             messagebox.showerror("Error", "Something went wrong.\nCheck the error logs.")
             log_error(str(e))
 
-    def detect_games(self):
+    def detect_games(self): 
+        """
+        Uses AI to detect games in a selected folder and adds them to the game list if not already added.
+
+        This function asks the user to select a folder to detect games in. It uses the `getStandalone`
+        function to process all `.exe` files in the selected folder and its subfolders, and then passes
+        the processed data to `getGameStandalonesFromLLM` to detect games. The detected games are then
+        added to the game list if not already added, and the game treeview is updated. Handles exceptions
+        by displaying an error message and logging the error.
+
+        Exceptions
+        ----------
+        Exception
+            If an error occurs during folder selection or processing, an error message is displayed
+            and the error is logged.
+        """
         def detection_process():
             try:
                 folder_selected = filedialog.askdirectory(title="Select a folder to detect games in")
@@ -298,18 +508,47 @@ class GameLauncher:
         threading.Thread(target=detection_process, daemon=True).start()
 
     def remove_game(self):
-            selected_item = self.game_treeview.selection()
-            if selected_item:
-                try:
-                    selected_index = int(self.game_treeview.index(selected_item))
-                    del self.games[selected_index]
-                    self.update_game_treeview()
-                except ValueError as e:
-                    messagebox.showerror("Error", f"Something went wrong.\nPlease check the error logs and contact the developer.\n(Details in README.txt).")
-                    log_error(str(e))
-            self.save_games()
+        """
+        Removes the selected game from the game list and updates the game treeview.
+
+        This function retrieves the currently selected item in the game treeview,
+        deletes it from the game list if valid, and updates the display. If an error
+        occurs during the removal process, it shows an error message to the user and
+        logs the error. After a successful removal, the updated game list is saved.
+
+        Exceptions
+        ----------
+        ValueError
+            If an invalid index is encountered, an error message is displayed and
+            the error is logged.
+        """
+
+        selected_item = self.game_treeview.selection()
+        if selected_item:
+            try:
+                selected_index = int(self.game_treeview.index(selected_item))
+                del self.games[selected_index]
+                self.update_game_treeview()
+            except ValueError as e:
+                messagebox.showerror("Error", f"Something went wrong.\nPlease check the error logs and contact the developer.\n(Details in README.txt).")
+                log_error(str(e))
+        self.save_games()
 
     def launch_game(self):
+        """
+        Launches the selected game in the game treeview.
+
+        This function retrieves the currently selected item in the game treeview,
+        launches the associated game executable if valid, and handles any errors
+        that may occur during the launching process. If an error occurs, it shows
+        an error message to the user and logs the error.
+
+        Exceptions
+        ----------
+        Exception
+            If an error occurs during game launching, an error message is displayed
+            and the error is logged.
+        """
         try:
             selected_item = self.game_treeview.selection()
             if selected_item:
@@ -321,6 +560,22 @@ class GameLauncher:
             log_error(str(e))
 
     def update_game_treeview(self):
+        """
+        Updates the game treeview with the current list of games.
+
+        This function clears the current items in the game treeview and
+        repopulates it with the current list of games. For each game, it
+        retrieves the game name from its executable file and inserts it
+        into the game treeview. If an error occurs during the retrieval
+        process, an error message is displayed to the user and the error
+        is logged.
+
+        Exceptions
+        ----------
+        Exception
+            If an error occurs during game name retrieval, an error message
+            is displayed to the user and the error is logged.
+        """
         self.game_treeview.delete(*self.game_treeview.get_children())
         for game in self.games:
             try:
@@ -341,11 +596,36 @@ class GameLauncher:
 
     @staticmethod
     def get_data_file(filename):
+        """
+        Retrieves the path to a data file, accommodating both development and
+        PyInstaller environments.
+
+        This function checks if the script is running in a PyInstaller bundled
+        environment by examining the 'sys.frozen' attribute. If true, it constructs
+        the file path using the temporary directory (_MEIPASS) created by PyInstaller.
+        Otherwise, it returns the filename as is.
+
+        Args:
+            filename (str): The name of the file whose path is to be retrieved.
+
+        Returns:
+            str: The resolved file path, either within the PyInstaller directory or
+            the original filename.
+        """
+
         if getattr(sys, 'frozen', False):
             return os.path.join(sys._MEIPASS, filename)
         return filename
 
     def load_games(self):
+        """
+        Loads the saved games from the 'games.pkl' file and updates the game treeview.
+
+        This function attempts to load the saved games from the 'games.pkl' file and
+        filters out any games that no longer exist. If successful, it updates the
+        game treeview with the loaded games. If an error occurs during loading, it
+        shows an error message, logs the error, and resets the game list to empty.
+        """
         try:
             with open(self.get_data_file("games.pkl"), "rb") as file:
                 saved_games = pickle.load(file)
@@ -358,6 +638,20 @@ class GameLauncher:
             log_error(str(e))
 
     def save_games(self):
+        """
+        Saves the current list of games to the 'games.pkl' file.
+
+        This function attempts to save the current list of games to the 'games.pkl'
+        file. It filters out any games that no longer exist before saving. If an
+        error occurs during saving, it shows an error message and logs the error.
+
+        Exceptions
+        ----------
+        Exception
+            If an error occurs during saving, an error message is displayed and
+            the error is logged.
+        """
+        
         try:
             existing_games = []
             for game in self.games:
