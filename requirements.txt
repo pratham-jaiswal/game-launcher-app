@@ -1,2 +1,6 @@
 ttkthemes
 pywin32
+langchain-openai
+langchain-cohere
+langchain_core
+python-dotenv
